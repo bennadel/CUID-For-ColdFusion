@@ -92,7 +92,7 @@ component
 
 		var processInfo = getProcessInfo();
 
-		var valueLeft = processInfo.id;
+		var valueLeft = abs( processInfo.id );
 		var valueRight = ( len( processInfo.name ) + base );
 
 		// Reduce the characters in the process name to a single integer.
