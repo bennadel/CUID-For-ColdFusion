@@ -1,30 +1,26 @@
 component
 	output = false
-	hint = "I generate collision-resistant ids optimized for horizontal scaling and performance (based on cuid by Eric Elliott)."
+	hint = "I generate small collision-resistant ids for trivial tasks like URL disambiguation (based on cuid.slug() by Eric Elliott)."
 	{
 
 	/**
-	* I initialize the CUID generator. By default, the CUID algorithm uses the JVM to
+	* I initialize the SLUG generator. By default, the SLUG algorithm uses the JVM to
 	* generate the "fingerprint". However, you can provide your own fingerprint. If you
-	* do, the fingerprint is expected to be 4-characters (there is no validation).
+	* do, the fingerprint is limited to be 2-characters (there is no validation).
 	* 
-	* @fingerprint I am the optional fingerprint to provide (should be 4-characters).
+	* @fingerprint I am the optional fingerprint to provide (should be 2-characters).
 	* @output false
 	*/
 	public any function init( string fingerprint ) {
-
-		// I am the number of characters used when generating the various blocks. This
-		// keeps the CUID length predictable.
-		blockSize = 4;
 
 		// I am the radix used to encode numeric values for block generation.
 		base = 36;
 
 		// I define the range of valid counter values (before the counter is reset back
-		// to zero). By limiting the range to a power of the blockSize, we can ensure
-		// that the counter, when formatted baseN, will fit into a string that is at most
-		// the same length as the blockSize.
-		discreteValues = ( base ^ blockSize );
+		// to zero). By limiting the range to a power of 4, we can ensure that the
+		// counter, when formatted baseN, will fit into a string that is at most 4
+		// characters long.
+		discreteValues = ( base ^ 4 );
 
 		// I provide a synchronized integer for the counter. The AtomicInteger allows for
 		// better performance over explicit locking when contention is high.
@@ -36,7 +32,7 @@ component
 		// Since the fingerprint of the host doesn't change over time, we can can 
 		// calculate it once and then cache it.
 		fingerprintBlock = structKeyExists( arguments, "fingerprint" )
-			? rightSize( fingerprint, blockSize )
+			? left( fingerprint, 2 )
 			: generateFingerprintBlock()
 		;
 
@@ -47,19 +43,22 @@ component
 	// ---
 
 	/**
-	* I return a 25-character random string with some collision-busting measures. This
-	* value will always start with the letter "c" and is safe to use as a unique server-
-	* side record identifier.
+	* I return a random string between 7 and 10 characters (inclusive) with some
+	* collision-busting measures. The string will only contain alpha-numeric characters.
+	* 
+	* CAUTION: This is not intended to be as random or as secure as the CUID and
+	* should NOT BE USED for server-side record identifiers or any situation in which
+	* it would be problematic for the generated value to be guessable.
 	* 
 	* @output false
 	*/
-	public string function createCuid() {
+	public string function createSlug() {
 
 		var timestampBlock = generateTimestampBlock();
 		var counterBlock = generateCounterBlock();
 		var randomBlock = generateRandomBlock();
 
-		return( "c#timestampBlock##counterBlock##fingerprintBlock##randomBlock#" );
+		return( "#timestampBlock##counterBlock##fingerprintBlock##randomBlock#" );
 
 	}
 
@@ -68,8 +67,8 @@ component
 	// ---
 
 	/**
-	* I generate the counter block for the CUID. This value is guaranteed to be the same
-	* length as the blockSize.
+	* I generate the counter block for the SLUG. This value will be between 1 and 4
+	* characters long (inclusive), as the counter increases.
 	* 
 	* @output false
 	*/
@@ -77,13 +76,13 @@ component
 
 		var value = safeCounter();
 
-		return( rightSize( formatBaseN( value, base ), blockSize ) );
+		return( right( formatBaseN( value, base ), 4 ) );
 
 	}
 
 
 	/**
-	* I generate the fingerprint block for the CUID. This value is guaranteed to be 4
+	* I generate the fingerprint block for the SLUG. This value is guaranteed to be 2
 	* characters long.
 	* 
 	* @output false
@@ -103,16 +102,16 @@ component
 		}
 
 		return(
-			rightSize( formatBaseN( valueLeft, base ), 2 ) &
-			rightSize( formatBaseN( valueRight, base ), 2 )
+			left( formatBaseN( valueLeft, base ), 1 ) &
+			right( formatBaseN( valueRight, base ), 1 )
 		);
 
 	}
 
 
 	/**
-	* I generate the random block for the CUID. This value is guaranteed to be twice the
-	* length of the blockSize.
+	* I generate the random block for the SLUG. This value is guaranteed to be 2
+	* characters long.
 	* 
 	* By using the SHA1 Pseudo-random number generator (SHA1PRNG), rand() will generate
 	* a number using the Sun Java SHA1PRNG algorithm. This algorithm provides greater
@@ -122,20 +121,17 @@ component
 	*/
 	private string function generateRandomBlock() {
 
-		var valueLeft = fix( rand( "SHA1PRNG" ) * discreteValues );
-		var valueRight = fix( rand( "SHA1PRNG" ) * discreteValues );
+		var value = fix( rand( "SHA1PRNG" ) * 1000 );
+		var encodedValue = formatBaseN( value, base );
 
-		return(
-			rightSize( formatBaseN( valueLeft, base ), blockSize ) &
-			rightSize( formatBaseN( valueRight, base ), blockSize )
-		);
+		return( right( "0#encodedValue#", 2 ) );
 
 	}
 
 
 	/**
-	* I generate the timestamp block for the CUID. This value is guaranteed to be the
-	* same length as the blockSize.
+	* I generate the timestamp block for the SLUG. This value is guaranteed to be 2
+	* characters long.
 	*
 	* @output false
 	*/
@@ -148,12 +144,7 @@ component
 			javaCast( "int", base )
 		);
 
-		// Right now, taking the UNIX time and base36-encoding it will result in an
-		// 8-character string. And, practically speaking, this will never change in your
-		// life-time. However, somewhere around the year 2060, the encoded time will
-		// result in a 9-character string. As such, I'm ensuring that the string size
-		// will always be 8.
-		return( rightSize( value, blockSize * 2 ) );
+		return( right( value, 2 ) );
 
 	}
 
@@ -202,22 +193,6 @@ component
 
 
 	/**
-	* I return the sliced version of the given value, padded with zeros if it isn't long
-	* enough to fill the slice.
-	* 
-	* @output false
-	*/
-	private string function rightSize(
-		required string value,
-		required numeric length
-		) {
-
-		return( right( "000000000#value#", length ) );
-
-	}
-
-
-	/**
 	* I return the next counter index, resetting the counter if we've reached the end of
 	* our discrete value range.
 	* 
@@ -225,7 +200,7 @@ component
 	*/
 	private numeric function safeCounter() {
 
-		// Since CUID can be used across threads, the counter becomes inherently unsafe.
+		// Since SLUG can be used across threads, the counter becomes inherently unsafe.
 		// As such, we are using an AtomicInteger in order to synchronize access to the
 		// counter value. However, instead of incrementing the value forever and 
 		// attempting to perform a modulo operation, we are simply covering the range of

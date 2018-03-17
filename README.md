@@ -3,7 +3,7 @@
 
 by [Ben Nadel][bennadel] (on [Google+][googleplus])
 
-**Version 1.0.1**
+**Version 1.1.0**
 
 This is a **ColdFusion port** of the [node.js cuid library][cuid] originally authored by
 [Eric Elliott][ericelliott]. It provides collision-resistant ids that are optimized for
@@ -25,14 +25,18 @@ once within an application and cached for future usage. The cuid library exposes
 public method, `.createCuid()`, which will generate and return your cuid token:
 
 ```cfc
-// Create and cache the instance for use across all requests in the application.
-application.cuid = new lib.Cuid();
+<cfscript>
 
-// Generate as many cuid values as you want! Skies the limit! Go cra-cra!
-writeOutput( "cuid: " & application.cuid.createCuid() & "<br />" );
-writeOutput( "cuid: " & application.cuid.createCuid() & "<br />" );
-writeOutput( "cuid: " & application.cuid.createCuid() & "<br />" );
-writeOutput( "cuid: " & application.cuid.createCuid() & "<br />" );
+	// Create and cache the instance for use across all requests in the application.
+	application.cuid = new lib.Cuid();
+
+	// Generate as many cuid values as you want! Skies the limit! Go cra-cra!
+	writeOutput( "cuid: " & application.cuid.createCuid() & "<br />" );
+	writeOutput( "cuid: " & application.cuid.createCuid() & "<br />" );
+	writeOutput( "cuid: " & application.cuid.createCuid() & "<br />" );
+	writeOutput( "cuid: " & application.cuid.createCuid() & "<br />" );
+
+</cfscript>
 ```
 
 Running the above code will produce the following output:
@@ -54,20 +58,43 @@ of the JVM (which I borrowed from the [cuid for Graphcool][graphcool] implementa
 However, you can pass in a custom fingerprint during instantiation if you want:
 
 ```cfc
-var cuid = new lib.Cuid( "lolz" );
+<cfscript>
 
-writeOutput( cuid.createCuid() ); // Outputs: cjetszc2wapswlolz29ev17go
+	cuid = new lib.Cuid( "lolz" );
+
+	writeOutput( cuid.createCuid() ); // Outputs: cjetszc2wapswlolz29ev17go
+
+</cfscript>
 ```
 
 Other than ensuring that the custom fingerprint is "block sized", the cuid for ColdFusion
 library makes no other alterations and performs no other validation. As such, be careful
 what you use as a _custom_ fingerprint.
 
-## No `slug()` Method
+## `slug()` Method
 
-At this time, the cuid for ColdFusion library omits the `slug()` method that is present
-in the original node.js version. I am omitting it simply because it feels like a separate
-concern and not sufficiently related to cuid generation.
+Unlike the original `cuid` library, cuid for ColdFusion has implemented the slug concept
+as a separate component, `Slug.cfc`, which has a `.createSlug()` method. The underlying
+implementation is very similar. However, since the two types of tokens have different
+length and randomness guarantees, it felt better to keep them separate.
+
+The `.createSlug()` method generates alpha-numeric strings which will be between 7 and 10
+characters long.
+
+```cfc
+<cfscript>
+
+	slug = new lib.Slug();
+
+	writeOutput( slug.createSlug() ); // Outputs: u8apswaifw
+
+</cfscript>
+```
+
+Unlike the cuid token, the slug token does _not start_ with a `c` and is not safe to use
+as an HTML element's ID attribute. It is also not secure enough to be used as a
+server-side record identifier. Do not use the slug in any situation in which the
+"guessability" of the generated token would be problematic.
 
 ## Proof Of Concept
 
