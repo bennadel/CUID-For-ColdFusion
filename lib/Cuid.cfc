@@ -179,7 +179,7 @@ component
 		// If the JVM name doesn't contain the "@" with at least one character on either
 		// side, then we're going to use a dummy JVM name. This way, we know we'll get
 		// two distinct values for PID and host.
-		if ( true || ! reFind( ".@.", jvmName ) ) {
+		if ( ! reFind( ".@.", jvmName ) ) {
 
 			// NOTE: Using a range in order to ensure the dummy ID can be contained
 			// within an Integer, otherwise subsequent calls to formatBaseN() may break.

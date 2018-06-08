@@ -3,7 +3,7 @@
 
 by [Ben Nadel][bennadel] (on [Google+][googleplus])
 
-**Version 1.1.0**
+**Version 1.1.1**
 
 This is a **ColdFusion port** of the [node.js cuid library][cuid] originally authored by
 [Eric Elliott][ericelliott]. It provides collision-resistant ids that are optimized for
